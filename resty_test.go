@@ -129,6 +129,12 @@ func createGetServer(t *testing.T) *httptest.Server {
 }
 
 func handleLoginEndpoint(t *testing.T, w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/login-old" {
+		w.Header().Set("Location", "/login")
+		code, _ := strconv.Atoi(r.URL.Query().Get("code"))
+		w.WriteHeader(code)
+		return
+	}
 	if r.URL.Path == "/login" {
 		user := &User{}
 

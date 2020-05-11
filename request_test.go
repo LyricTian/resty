@@ -7,6 +7,7 @@ package resty
 import (
 	"bytes"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -1715,4 +1716,41 @@ func TestDebugLoggerRequestBodyTooLarge(t *testing.T) {
 	assertNil(t, err)
 	assertNotNil(t, resp)
 	assertEqual(t, true, strings.Contains(output.String(), "REQUEST TOO LARGE"))
+}
+
+func TestGH319(t *testing.T) {
+	ts := createPostServer(t)
+	defer ts.Close()
+
+	user := &User{Username: "testuser", Password: "testpass"}
+	c := dc()
+
+	for _, code := range []string{"301", "303", "307", "308"} {
+		fmt.Println("\nTesting Resty with code:", code)
+		resp, _ := c.R().
+			SetHeader(hdrContentTypeKey, "application/json; charset=utf-8").
+			SetBody(user).
+			SetResult(&AuthSuccess{}).
+			Post(ts.URL + "/login-old?code=" + code)
+
+		assertEqual(t, "success", resp.Result().(*AuthSuccess).ID)
+		fmt.Println(resp.String())
+	}
+}
+
+func TestGH319DefualtClient(t *testing.T) {
+	ts := createPostServer(t)
+	defer ts.Close()
+
+	for _, code := range []string{"301", "303", "307", "308"} {
+		fmt.Println("\nTesting Default client with code:", code)
+		resp, _ := http.Post(ts.URL+"/login-old?code="+code,
+			"application/json",
+			strings.NewReader(`{"username":"testuser", "password":"testpass"}`),
+		)
+		// fmt.Println(err, resp)
+		b, _ := ioutil.ReadAll(resp.Body)
+		fmt.Println("    Response: " + string(b))
+		assertEqual(t, true, strings.Contains(string(b), "login successful"))
+	}
 }
